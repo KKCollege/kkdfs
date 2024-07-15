@@ -1,7 +1,5 @@
 package cn.kimmking.kkfs;
 
-import com.alibaba.fastjson.util.IOUtils;
-import jakarta.servlet.ServletOutputStream;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.SneakyThrows;
@@ -16,11 +14,10 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.*;
-import java.util.UUID;
 
 import static cn.kimmking.kkfs.FileUtils.getMimeType;
 import static cn.kimmking.kkfs.FileUtils.getUUIDFile;
-import static cn.kimmking.kkfs.HttpSyncer.XFILENAME;
+import static cn.kimmking.kkfs.HttpSyncer.*;
 
 /**
  * file download and upload controller.
@@ -53,10 +50,15 @@ public class FileController {
         boolean neeSync = false;
         String filename = request.getHeader(XFILENAME);
         // 同步文件到backup
+        String originalFilename = file.getOriginalFilename();
         if(filename == null || filename.isEmpty())  {
             neeSync = true;
-//            filename = file.getOriginalFilename();
-            filename = getUUIDFile(file.getOriginalFilename());
+            filename = getUUIDFile(originalFilename);
+        } else {
+            String xof = request.getHeader(XORIGINALFILENAME);
+            if(xof != null && !xof.isEmpty()) {
+                originalFilename = xof;
+            }
         }
         String subdir = FileUtils.getSubdir(filename);
         File dest = new File(uploadPath + "/" + subdir + "/" + filename);
@@ -65,7 +67,7 @@ public class FileController {
         // 2. 处理meta
         FileMeta meta = new FileMeta();
         meta.setName(filename);
-        meta.setOriginalFilename(file.getOriginalFilename());
+        meta.setOriginalFilename(originalFilename);
         meta.setSize(file.getSize());
         if(autoMd5) {
             meta.getTags().put("md5", DigestUtils.md5DigestAsHex(new FileInputStream(dest)));
@@ -82,13 +84,11 @@ public class FileController {
         // 3. 同步到backup
         // 同步文件到backup
         if(neeSync)  {
-            httpSyncer.sync(dest, backupUrl);
+            httpSyncer.sync(dest, backupUrl, originalFilename);
         }
 
         return filename;
     }
-
-
 
     @RequestMapping("/download")
     public void download(String name, HttpServletResponse response) {

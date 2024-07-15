@@ -2,7 +2,6 @@ package cn.kimmking.kkfs;
 
 import com.alibaba.fastjson.JSON;
 import lombok.SneakyThrows;
-import org.apache.tomcat.util.http.fileupload.IOUtils;
 
 import java.io.File;
 import java.net.FileNameMap;
