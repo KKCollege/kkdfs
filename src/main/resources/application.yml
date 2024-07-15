@@ -5,4 +5,5 @@ spring:
 kkfs:
     path: ${user.home}/kkfs
     autoBackup: false
+    autoMd5: true
     backupUrl: http://localhost:8081/upload

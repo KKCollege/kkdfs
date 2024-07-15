@@ -1,8 +1,15 @@
 package cn.kimmking.kkfs;
 
+import com.alibaba.fastjson.JSON;
+import lombok.SneakyThrows;
+import org.apache.tomcat.util.http.fileupload.IOUtils;
+
 import java.io.File;
 import java.net.FileNameMap;
 import java.net.URLConnection;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.util.UUID;
 
 /**
@@ -48,4 +55,10 @@ public class FileUtils {
         return originalFilename.substring(originalFilename.lastIndexOf("."));
     }
 
+    @SneakyThrows
+    public static void writeMeta(File metaFile, FileMeta meta) {
+        String json = JSON.toJSONString(meta);
+        Files.writeString(Paths.get(metaFile.getAbsolutePath()), json,
+                StandardOpenOption.CREATE, StandardOpenOption.WRITE);
+    }
 }
