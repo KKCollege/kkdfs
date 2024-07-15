@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.*;
+import java.util.UUID;
 
 import static cn.kimmking.kkfs.HttpSyncer.XFILENAME;
 
@@ -48,7 +49,8 @@ public class FileController {
         // 同步文件到backup
         if(filename == null || filename.isEmpty())  {
             neeSync = true;
-            filename = file.getOriginalFilename();
+            filename = getFilename(file);
+//            filename = file.getOriginalFilename();
         }
         File dest = new File(uploadPath + "/" + filename);
         file.transferTo(dest);
@@ -59,6 +61,14 @@ public class FileController {
         }
 
         return filename;
+    }
+
+    private static String getFilename(MultipartFile file) {
+        return UUID.randomUUID().toString() + "." + getExtname(file.getOriginalFilename());
+    }
+
+    private static String getExtname(String originalFilename) {
+        return originalFilename.substring(originalFilename.lastIndexOf(".") + 1);
     }
 
     @RequestMapping("/download")
