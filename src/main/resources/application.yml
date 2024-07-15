@@ -1,0 +1,8 @@
+spring:
+    application:
+        name: kkfs
+
+kkfs:
+    path: ${user.home}/kkfs
+    autoBackup: false
+    backupUrl: http://localhost:8081/upload
