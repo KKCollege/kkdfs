@@ -13,7 +13,10 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.*;
+import java.util.UUID;
 
+import static cn.kimmking.kkfs.FileUtils.getMimeType;
+import static cn.kimmking.kkfs.FileUtils.getUUIDFile;
 import static cn.kimmking.kkfs.HttpSyncer.XFILENAME;
 
 /**
@@ -39,18 +42,16 @@ public class FileController {
     @PostMapping("/upload")
     public String upload(@RequestParam("file") MultipartFile file,
                          HttpServletRequest request) {
-        File dir = new File(uploadPath);
-        if (!dir.exists()) {
-            dir.mkdirs();
-        }
         boolean neeSync = false;
         String filename = request.getHeader(XFILENAME);
         // 同步文件到backup
         if(filename == null || filename.isEmpty())  {
             neeSync = true;
-            filename = file.getOriginalFilename();
+//            filename = file.getOriginalFilename();
+            filename = getUUIDFile(file.getOriginalFilename());
         }
-        File dest = new File(uploadPath + "/" + filename);
+        String subdir = FileUtils.getSubdir(filename);
+        File dest = new File(uploadPath + "/" + subdir + "/" + filename);
         file.transferTo(dest);
 
         // 同步文件到backup
@@ -61,9 +62,12 @@ public class FileController {
         return filename;
     }
 
+
+
     @RequestMapping("/download")
     public void download(String name, HttpServletResponse response) {
-        String path = uploadPath + "/" + name;
+        String subdir = FileUtils.getSubdir(name);
+        String path = uploadPath + "/" + subdir + "/" + name;
         File file = new File(path);
         try {
             FileInputStream inputStream = new FileInputStream(file);
@@ -72,8 +76,9 @@ public class FileController {
 
             // 加一些response的头
             response.setCharacterEncoding("UTF-8");
-            response.setContentType("application/octet-stream");
-            response.setHeader("Content-Disposition", "attachment;filename=" + name);
+            // response.setContentType("application/octet-stream");
+            response.setContentType(getMimeType(name));
+            // response.setHeader("Content-Disposition", "attachment;filename=" + name);
             response.setHeader("Content-Length", String.valueOf(file.length()));
 
             // 读取文件信息，并逐段输出
