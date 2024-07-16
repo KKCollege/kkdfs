@@ -5,12 +5,14 @@ import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
 
 import java.io.File;
 
 import static cn.kimmking.kkfs.FileUtils.init;
 
 @SpringBootApplication
+@Import(org.apache.rocketmq.spring.autoconfigure.RocketMQAutoConfiguration.class)
 public class KkfsApplication {
 
     public static void main(String[] args) {

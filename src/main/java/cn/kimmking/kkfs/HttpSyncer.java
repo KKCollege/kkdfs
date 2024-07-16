@@ -38,7 +38,8 @@ public class HttpSyncer {
         HttpEntity<MultiValueMap<String, HttpEntity<?>>> httpEntity
                 = new HttpEntity<>(builder.build(), headers);
 
-        ResponseEntity<String> stringResponseEntity = restTemplate.postForEntity(url, httpEntity, String.class);
+        ResponseEntity<String> stringResponseEntity =
+                restTemplate.postForEntity(url, httpEntity, String.class);
         String result = stringResponseEntity.getBody();
         System.out.println(" sync result = " + result);
         return result;
