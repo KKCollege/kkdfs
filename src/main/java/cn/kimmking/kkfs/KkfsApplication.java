@@ -1,16 +1,17 @@
 package cn.kimmking.kkfs;
 
+import org.apache.rocketmq.spring.autoconfigure.RocketMQAutoConfiguration;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
-
-import java.io.File;
+import org.springframework.context.annotation.Import;
 
 import static cn.kimmking.kkfs.FileUtils.init;
 
 @SpringBootApplication
+@Import(RocketMQAutoConfiguration.class)
 public class KkfsApplication {
 
     public static void main(String[] args) {

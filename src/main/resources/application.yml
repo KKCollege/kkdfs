@@ -4,6 +4,16 @@ spring:
 
 kkfs:
     path: ${user.home}/kkfs
-    autoBackup: false
+    syncBackup: false
     autoMd5: true
-    backupUrl: http://localhost:8081/upload
+    group: C8090
+    backupUrl: http://localhost:8091/upload
+    downloadUrl: http://localhost:8090/download
+
+rocketmq:
+    name-server: localhost:9876
+    producer:
+        group: kkfs-producer
+
+server:
+    port: 8090

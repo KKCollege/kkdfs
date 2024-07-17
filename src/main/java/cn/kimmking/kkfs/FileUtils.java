@@ -2,9 +2,14 @@ package cn.kimmking.kkfs;
 
 import com.alibaba.fastjson.JSON;
 import lombok.SneakyThrows;
-import org.apache.tomcat.util.http.fileupload.IOUtils;
+import org.springframework.core.io.Resource;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.client.RestTemplate;
 
-import java.io.File;
+import java.io.*;
 import java.net.FileNameMap;
 import java.net.URLConnection;
 import java.nio.file.Files;
@@ -60,5 +65,29 @@ public class FileUtils {
         String json = JSON.toJSONString(meta);
         Files.writeString(Paths.get(metaFile.getAbsolutePath()), json,
                 StandardOpenOption.CREATE, StandardOpenOption.WRITE);
+    }
+
+    @SneakyThrows
+    public static void writeString(File file, String content) {
+        Files.writeString(Paths.get(file.getAbsolutePath()), content,
+                StandardOpenOption.CREATE, StandardOpenOption.WRITE);
+    }
+
+    @SneakyThrows
+    public static void download(String downloadUrl, File file) {
+        System.out.println(" ===>>>> download file: " + file.getAbsolutePath());
+        RestTemplate restTemplate = new RestTemplate();
+        HttpEntity<?> entity = new HttpEntity<>(new HttpHeaders());
+        ResponseEntity<Resource> exchange = restTemplate
+                .exchange(downloadUrl, HttpMethod.GET, entity, Resource.class);
+        InputStream fis = new BufferedInputStream(exchange.getBody().getInputStream());
+        byte[] buffer = new byte[16*1024];
+        OutputStream outputStream = new FileOutputStream(file);
+        while (fis.read(buffer) != -1) {
+            outputStream.write(buffer);
+        }
+        outputStream.flush();
+        outputStream.close();
+        fis.close();
     }
 }
