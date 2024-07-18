@@ -1,4 +1,4 @@
-package cn.kimmking.kkfs;
+package cn.kimmking.kkfs.syncer;
 
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.http.HttpEntity;

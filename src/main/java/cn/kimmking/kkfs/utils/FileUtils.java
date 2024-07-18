@@ -1,5 +1,6 @@
-package cn.kimmking.kkfs;
+package cn.kimmking.kkfs.utils;
 
+import cn.kimmking.kkfs.meta.FileMeta;
 import com.alibaba.fastjson.JSON;
 import lombok.SneakyThrows;
 import org.springframework.core.io.Resource;
@@ -7,6 +8,7 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
+import org.springframework.util.FileCopyUtils;
 import org.springframework.web.client.RestTemplate;
 
 import java.io.*;
@@ -74,15 +76,33 @@ public class FileUtils {
     }
 
     @SneakyThrows
+    public static String readString(File file) {
+        return FileCopyUtils.copyToString(new FileReader(file));
+    }
+
+    @SneakyThrows
     public static void download(String downloadUrl, File file) {
         System.out.println(" ===>>>> download file: " + file.getAbsolutePath());
         RestTemplate restTemplate = new RestTemplate();
         HttpEntity<?> entity = new HttpEntity<>(new HttpHeaders());
         ResponseEntity<Resource> exchange = restTemplate
                 .exchange(downloadUrl, HttpMethod.GET, entity, Resource.class);
-        InputStream fis = new BufferedInputStream(exchange.getBody().getInputStream());
-        byte[] buffer = new byte[16*1024];
+        InputStream inputStream = new BufferedInputStream(exchange.getBody().getInputStream());
         OutputStream outputStream = new FileOutputStream(file);
+        output(inputStream, outputStream);
+    }
+
+    @SneakyThrows
+    public static void output(File file, OutputStream outputStream) {
+        output(new FileInputStream(file), outputStream);
+    }
+
+    @SneakyThrows
+    public static void output(InputStream inputStream, OutputStream outputStream) {
+        InputStream fis = new BufferedInputStream(inputStream);
+        byte[] buffer = new byte[16*1024];
+
+        // 读取文件信息，并逐段输出
         while (fis.read(buffer) != -1) {
             outputStream.write(buffer);
         }

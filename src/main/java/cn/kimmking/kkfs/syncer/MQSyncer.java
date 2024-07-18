@@ -1,5 +1,7 @@
-package cn.kimmking.kkfs;
+package cn.kimmking.kkfs.syncer;
 
+import cn.kimmking.kkfs.meta.FileMeta;
+import cn.kimmking.kkfs.utils.FileUtils;
 import com.alibaba.fastjson.JSON;
 import org.apache.rocketmq.common.message.MessageExt;
 import org.apache.rocketmq.spring.annotation.RocketMQMessageListener;

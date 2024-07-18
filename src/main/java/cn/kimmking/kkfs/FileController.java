@@ -1,12 +1,15 @@
 package cn.kimmking.kkfs;
 
+import cn.kimmking.kkfs.config.KkfsConfigProperties;
+import cn.kimmking.kkfs.meta.FileMeta;
+import cn.kimmking.kkfs.syncer.HttpSyncer;
+import cn.kimmking.kkfs.syncer.MQSyncer;
+import cn.kimmking.kkfs.utils.FileUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.SneakyThrows;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.util.DigestUtils;
-import org.springframework.util.FileCopyUtils;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -14,11 +17,6 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.*;
-
-import static cn.kimmking.kkfs.FileUtils.getMimeType;
-import static cn.kimmking.kkfs.FileUtils.getUUIDFile;
-import static cn.kimmking.kkfs.HttpSyncer.XFILENAME;
-import static cn.kimmking.kkfs.HttpSyncer.XORIGFILENAME;
 
 /**
  * file download and upload controller.
@@ -30,14 +28,8 @@ import static cn.kimmking.kkfs.HttpSyncer.XORIGFILENAME;
 @RestController
 public class FileController {
 
-    @Value("${kkfs.path}")
-    private String uploadPath;
-
-    @Value("${kkfs.backupUrl}")
-    private String backupUrl;
-
-    @Value("${kkfs.downloadUrl}")
-    private String downloadUrl;
+    @Autowired
+    KkfsConfigProperties configProperties;
 
     @Autowired
     HttpSyncer httpSyncer;
@@ -45,113 +37,65 @@ public class FileController {
     @Autowired
     MQSyncer mqSyncer;
 
-    @Value("${kkfs.autoMd5}")
-    private boolean autoMd5;
-
-    @Value("${kkfs.syncBackup}")
-    private boolean syncBackup;
-
     @SneakyThrows
     @PostMapping("/upload")
-    public String upload(@RequestParam("file") MultipartFile file,
-                         HttpServletRequest request) {
-
+    public String upload(@RequestParam("file") MultipartFile file, HttpServletRequest request) {
         // 1. 处理文件
-        boolean neeSync = false;
-        String filename = request.getHeader(XFILENAME);
-        // 同步文件到backup
+        boolean needSync = false;
+        String filename = request.getHeader(HttpSyncer.XFILENAME);
         String originalFilename = file.getOriginalFilename();
-        if(filename == null || filename.isEmpty())  { // upload上传文件
-            neeSync = true;
-            filename = getUUIDFile(originalFilename);
-        } else { // 同步文件
-            String xor = request.getHeader(XORIGFILENAME);
-            if(xor !=null && !xor.isEmpty()) {
+        if (filename == null || filename.isEmpty()) { // 如果这个为空则是正常上传
+            needSync = true;
+            filename = FileUtils.getUUIDFile(originalFilename);
+        } else { // 如果走到这里，说明是主从同步文件
+            String xor = request.getHeader(HttpSyncer.XORIGFILENAME);
+            if (xor != null && !xor.isEmpty()) {
                 originalFilename = xor;
             }
         }
-        String subdir = FileUtils.getSubdir(filename);
-        File dest = new File(uploadPath + "/" + subdir + "/" + filename);
-        file.transferTo(dest);
-
+        File dest = getFile(FileUtils.getSubdir(filename), filename);
+        file.transferTo(dest); // 复制文件到制定位置
         // 2. 处理meta
-        FileMeta meta = new FileMeta();
-        meta.setName(filename);
-        meta.setOriginalFilename(originalFilename);
-        meta.setSize(file.getSize());
-        meta.setDownloadUrl(downloadUrl);
-        if(autoMd5) {
+        FileMeta meta = new FileMeta(filename, originalFilename, file.getSize(), configProperties.getDownloadUrl());
+        if (configProperties.isAutoMd5()) {
             meta.getTags().put("md5", DigestUtils.md5DigestAsHex(new FileInputStream(dest)));
         }
-
         // 2.1 存放到本地文件
-        String metaName = filename + ".meta";
-        File metaFile = new File(uploadPath + "/" + subdir + "/" + metaName);
-        FileUtils.writeMeta(metaFile, meta);
-
-        // 2.2 存到数据库
-        // 2.3 存放到配置中心或注册中心，比如zk
-
+        FileUtils.writeMeta(new File(dest.getAbsolutePath() + ".meta"), meta);
         // 3. 同步到backup
-        // 同步文件到backup
-        // 让我们可以实现同步处理文件复制，也可以异步处理文件复制。
-        if(neeSync) {
-            if(syncBackup) {
+        if (needSync) {
+            if (configProperties.isSyncBackup()) {
                 try {
-                    httpSyncer.sync(dest, backupUrl, originalFilename);
+                    httpSyncer.sync(dest, configProperties.getBackupUrl(), originalFilename);
                 } catch (Exception exception) {
-                    // log ex
                     exception.printStackTrace();
-                    // MQSyncer.sync(backupUrl, meta);
+                    mqSyncer.sync(meta); // 同步失败则转异步处理
                 }
-            }else{
+            } else {
                 mqSyncer.sync(meta);
             }
         }
         return filename;
     }
 
+    private File getFile(String subdir, String filename) {
+        return new File(configProperties.getUploadPath() + "/" + subdir + "/" + filename);
+    }
 
-
+    @SneakyThrows
     @RequestMapping("/download")
     public void download(String name, HttpServletResponse response) {
-        String subdir = FileUtils.getSubdir(name);
-        String path = uploadPath + "/" + subdir + "/" + name;
-        File file = new File(path);
-        try {
-            FileInputStream inputStream = new FileInputStream(file);
-            InputStream fis = new BufferedInputStream(inputStream);
-            byte[] buffer = new byte[16*1024];
-
-            // 加一些response的头
-            response.setCharacterEncoding("UTF-8");
-            // response.setContentType("application/octet-stream");
-            response.setContentType(getMimeType(name));
-            // response.setHeader("Content-Disposition", "attachment;filename=" + name);
-            response.setHeader("Content-Length", String.valueOf(file.length()));
-
-            // 读取文件信息，并逐段输出
-            OutputStream outputStream = response.getOutputStream();
-            while (fis.read(buffer) != -1) {
-                outputStream.write(buffer);
-            }
-            outputStream.flush();
-            fis.close();
-        } catch (Exception ex) {
-            ex.printStackTrace();
-        }
+        File file = getFile(FileUtils.getSubdir(name),name);
+        response.setCharacterEncoding("UTF-8");
+        response.setContentType(FileUtils.getMimeType(name));
+        // response.setHeader("Content-Disposition", "attachment;filename=" + name);
+        response.setHeader("Content-Length", String.valueOf(file.length()));
+        FileUtils.output(file, response.getOutputStream());
     }
 
+    @SneakyThrows
     @RequestMapping("/meta")
     public String meta(String name) {
-        String subdir = FileUtils.getSubdir(name);
-        String path = uploadPath + "/" + subdir + "/" + name + ".meta";
-        File file = new File(path);
-        try {
-            return FileCopyUtils.copyToString(new FileReader(file));
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+        return FileUtils.readString(getFile(FileUtils.getSubdir(name),name));
     }
-
 }

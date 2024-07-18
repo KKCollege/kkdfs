@@ -1,4 +1,4 @@
-package cn.kimmking.kkfs;
+package cn.kimmking.kkfs.config;
 
 import jakarta.servlet.MultipartConfigElement;
 import org.springframework.boot.web.servlet.MultipartConfigFactory;
@@ -6,7 +6,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
- * Description for this class.
+ * config file temp dir.
  *
  * @Author : kimmking(kimmking@apache.org)
  * @create 2024/7/10 下午9:10
